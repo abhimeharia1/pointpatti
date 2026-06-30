@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Score Manager</title>
+<title>Teen Patti Score Manager</title>
 
 <style>
 body{
@@ -126,14 +126,14 @@ th{
     }
     input,select{
         width:auto;
-        max-width:145px;
+        max-width:130px;
         margin:5px;
     }
     button{
         width:auto;
         min-height:0;
-        padding:8px;
-        margin:5px;
+        padding:7px 8px;
+        margin:4px;
         font-size:13px;
         vertical-align:top;
     }
@@ -157,6 +157,7 @@ th{
     }
     #playerName{
         order:1;
+        max-width:120px;
     }
     button[onclick="addPlayer()"]{
         order:2;
@@ -170,12 +171,24 @@ th{
     .round-box{
         order:6;
         width:100%;
+        padding:10px;
+        margin:10px 0;
+    }
+    .round-box h3{
+        font-size:16px;
+        margin-bottom:6px;
+    }
+    .round-box button{
+        min-width:38px;
+        padding:7px 10px;
     }
     #playerSelect{
         order:7;
+        max-width:125px;
     }
     #points{
         order:8;
+        max-width:90px;
     }
     button[onclick="addPoints()"]{
         order:9;
@@ -186,15 +199,21 @@ th{
     button[onclick="resetGame()"]{
         order:11;
     }
+    #gameMode{
+        order:12;
+        max-width:none;
+        width:100%;
+        margin:6px 0;
+    }
     h3,.table-wrap,.total-table{
-        order:13;
+        order:14;
         width:100%;
     }
     #message{
-        order:12;
+        order:13;
     }
     table{
-        min-width:720px;
+        min-width:640px;
     }
     .total-table{
         min-width:0;
@@ -240,6 +259,11 @@ th{
 
 <button onclick="resetGame()" title="Reset Game">Reset</button>
 
+<select id="gameMode" onchange="changeGameMode()">
+<option value="minimum">Minimum score wins</option>
+<option value="maximum">Maximum score wins</option>
+</select>
+
 <div id="message" class="message"></div>
 
 <h3>Round Scores</h3>
@@ -283,6 +307,7 @@ th{
 let players=[];
 let round=1;
 let totalRounds=10;
+let gameMode="minimum";
 let undoStack=[];
 let redoStack=[];
 
@@ -294,7 +319,8 @@ score:player.score,
 rounds:[...(player.rounds || [])]
 })),
 round:round,
-totalRounds:totalRounds
+totalRounds:totalRounds,
+gameMode:gameMode
 };
 }
 
@@ -306,6 +332,7 @@ rounds:[...(player.rounds || [])]
 }));
 round=state.round;
 totalRounds=state.totalRounds;
+gameMode=state.gameMode || "minimum";
 render();
 }
 
@@ -342,6 +369,19 @@ function clearMessage(){
 let message=document.getElementById("message");
 message.textContent="";
 message.style.display="none";
+}
+
+function changeGameMode(){
+let selectedMode=document.getElementById("gameMode").value;
+
+if(selectedMode==gameMode) return;
+
+saveState();
+
+gameMode=selectedMode;
+
+render();
+
 }
 
 function ensurePlayerRounds(){
@@ -513,6 +553,7 @@ document.getElementById("totalRoundCount").innerText=totalRounds;
 document.getElementById("prevRoundBtn").disabled=round<=1;
 document.getElementById("nextRoundBtn").disabled=round>=totalRounds;
 document.getElementById("removeRoundBtn").disabled=totalRounds<=1;
+document.getElementById("gameMode").value=gameMode;
 
 ensurePlayerRounds();
 
@@ -544,7 +585,9 @@ let selectedPlayer=select.value;
 
 select.innerHTML="";
 
-let highestScore=Math.max(...players.map(player=>player.score));
+let winningScore=gameMode=="minimum"
+? Math.min(...players.map(player=>player.score))
+: Math.max(...players.map(player=>player.score));
 
 players.forEach((p,index)=>{
 
@@ -561,7 +604,7 @@ table.innerHTML+=`
 ${roundCells}
 </tr>`;
 
-let winnerClass=players.length>1 && highestScore>0 && p.score==highestScore ? "winner-row" : "";
+let winnerClass=players.length>1 && p.score==winningScore ? "winner-row" : "";
 
 totalTable.innerHTML+=`
 <tr class="${winnerClass}">
