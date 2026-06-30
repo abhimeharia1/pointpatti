@@ -34,6 +34,12 @@ select{
 }
 button{
     cursor:pointer;
+    border:1px solid #bbb;
+    border-radius:5px;
+    background:#fff;
+}
+button:hover:not(:disabled){
+    background:#f0f0f0;
 }
 button:disabled{
     cursor:not-allowed;
@@ -70,8 +76,32 @@ th{
     background:#333;
     color:white;
 }
+.active-round{
+    background:#fff3cd;
+    font-weight:bold;
+}
+.winner-row td{
+    background:#e8f5e9;
+    font-weight:bold;
+}
 .total-table{
     min-width:0;
+}
+.message{
+    display:none;
+    width:100%;
+    margin:8px 0;
+    padding:8px 10px;
+    border-radius:6px;
+    background:#fff3cd;
+    color:#664d03;
+    box-sizing:border-box;
+}
+.mobile-label{
+    display:none;
+}
+.player-mobile-label{
+    display:none;
 }
 @media(max-width:600px){
     body{
@@ -80,16 +110,88 @@ th{
     .container{
         padding:14px;
     }
+    .container.controls{
+        display:flex;
+        flex-wrap:wrap;
+        align-items:center;
+        gap:0;
+    }
     h2{
         font-size:22px;
+        flex-basis:100%;
     }
-    input,select,button{
+    hr{
         width:100%;
-        max-width:none;
-        margin:5px 0;
+        order:5;
     }
-    .round-box button{
+    input,select{
+        width:auto;
+        max-width:145px;
+        margin:5px;
+    }
+    button{
+        width:auto;
+        min-height:0;
+        padding:8px;
+        margin:5px;
+        font-size:13px;
+        vertical-align:top;
+    }
+    #undoBtn,#redoBtn{
+        width:auto;
+    }
+    button[onclick="resetGame()"]{
+        width:auto;
+    }
+    .compact-action .desktop-label{
+        display:none;
+    }
+    .compact-action .mobile-label{
+        display:inline;
+    }
+    .player-desktop-label{
+        display:none;
+    }
+    .player-mobile-label{
+        display:inline;
+    }
+    #playerName{
+        order:1;
+    }
+    button[onclick="addPlayer()"]{
+        order:2;
+    }
+    #undoBtn{
+        order:3;
+    }
+    #redoBtn{
+        order:4;
+    }
+    .round-box{
+        order:6;
         width:100%;
+    }
+    #playerSelect{
+        order:7;
+    }
+    #points{
+        order:8;
+    }
+    button[onclick="addPoints()"]{
+        order:9;
+    }
+    button[onclick="subtractPoints()"]{
+        order:10;
+    }
+    button[onclick="resetGame()"]{
+        order:11;
+    }
+    h3,.table-wrap,.total-table{
+        order:13;
+        width:100%;
+    }
+    #message{
+        order:12;
     }
     table{
         min-width:720px;
@@ -107,36 +209,38 @@ th{
 
 <body>
 
-<div class="container">
+<div class="container controls">
 
 <h2>🃏 Score Manager</h2>
 
 <input id="playerName" placeholder="Player Name">
-<button onclick="addPlayer()">Add Player</button>
+<button onclick="addPlayer()" title="Add Player"><span class="player-desktop-label">Add Player</span><span class="player-mobile-label">＋ Player</span></button>
 
 <hr>
 
 <div class="round-box">
 <h3>Round: <span id="roundCount">1</span> / <span id="totalRoundCount">10</span></h3>
-<button id="prevRoundBtn" onclick="previousRound()">Previous Round</button>
-<button id="nextRoundBtn" onclick="nextRound()">Next Round</button>
-<button onclick="addRound()">Add Round</button>
-<button id="removeRoundBtn" onclick="removeRound()">Remove Round</button>
+<button id="prevRoundBtn" class="compact-action" onclick="previousRound()" title="Previous Round"><span class="desktop-label">Previous Round</span><span class="mobile-label">‹</span></button>
+<button id="nextRoundBtn" class="compact-action" onclick="nextRound()" title="Next Round"><span class="desktop-label">Next Round</span><span class="mobile-label">›</span></button>
+<button class="compact-action" onclick="addRound()" title="Add Round"><span class="desktop-label">Add Round</span><span class="mobile-label">＋</span></button>
+<button id="removeRoundBtn" class="compact-action" onclick="removeRound()" title="Remove Round"><span class="desktop-label">Remove Round</span><span class="mobile-label">−</span></button>
 </div>
 
 <select id="playerSelect"></select>
 
 <input type="number" id="points" placeholder="Points">
 
-<button onclick="addPoints()">+ Add</button>
+<button class="compact-action" onclick="addPoints()" title="Add Points"><span class="desktop-label">Add Points</span><span class="mobile-label">＋</span></button>
 
-<button onclick="subtractPoints()">- Subtract</button>
+<button class="compact-action" onclick="subtractPoints()" title="Subtract Points"><span class="desktop-label">Subtract Points</span><span class="mobile-label">−</span></button>
 
-<button id="undoBtn" onclick="undoAction()" disabled>Undo</button>
+<button id="undoBtn" onclick="undoAction()" title="Undo" disabled>↶</button>
 
-<button id="redoBtn" onclick="redoAction()" disabled>Redo</button>
+<button id="redoBtn" onclick="redoAction()" title="Redo" disabled>↷</button>
 
-<button onclick="resetGame()">Reset</button>
+<button onclick="resetGame()" title="Reset Game">Reset</button>
+
+<div id="message" class="message"></div>
 
 <h3>Round Scores</h3>
 <div class="table-wrap">
@@ -228,6 +332,18 @@ document.getElementById("undoBtn").disabled=undoStack.length==0;
 document.getElementById("redoBtn").disabled=redoStack.length==0;
 }
 
+function showMessage(text){
+let message=document.getElementById("message");
+message.textContent=text;
+message.style.display="block";
+}
+
+function clearMessage(){
+let message=document.getElementById("message");
+message.textContent="";
+message.style.display="none";
+}
+
 function ensurePlayerRounds(){
 players.forEach(player=>{
 if(!player.rounds) player.rounds=[];
@@ -245,13 +361,23 @@ function addPlayer(){
 
 let name=document.getElementById("playerName").value.trim();
 
-if(name=="") return;
+if(name==""){
+showMessage("Enter player name.");
+return;
+}
+
+if(players.some(player=>player.name.toLowerCase()==name.toLowerCase())){
+showMessage("Player already exists.");
+return;
+}
 
 saveState();
 
 players.push({name:name,score:0,rounds:Array(totalRounds).fill(0)});
 
 document.getElementById("playerName").value="";
+
+clearMessage();
 
 render();
 
@@ -263,12 +389,23 @@ let i=document.getElementById("playerSelect").value;
 
 let p=Number(document.getElementById("points").value);
 
-if(players.length==0) return;
+if(players.length==0){
+showMessage("Add player first.");
+return;
+}
+
+if(document.getElementById("points").value=="" || isNaN(p)){
+showMessage("Enter points.");
+return;
+}
 
 saveState();
 
 players[i].rounds[round-1]+=p;
 players[i].score+=p;
+
+document.getElementById("points").value="";
+clearMessage();
 
 render();
 
@@ -280,12 +417,23 @@ let i=document.getElementById("playerSelect").value;
 
 let p=Number(document.getElementById("points").value);
 
-if(players.length==0) return;
+if(players.length==0){
+showMessage("Add player first.");
+return;
+}
+
+if(document.getElementById("points").value=="" || isNaN(p)){
+showMessage("Enter points.");
+return;
+}
 
 saveState();
 
 players[i].rounds[round-1]-=p;
 players[i].score-=p;
+
+document.getElementById("points").value="";
+clearMessage();
 
 render();
 
@@ -381,7 +529,8 @@ let head=document.getElementById("scoreHead");
 let roundHeadings="";
 
 for(let i=1;i<=totalRounds;i++){
-roundHeadings+=`<th>Round ${i}</th>`;
+let headingClass=i==round ? "active-round" : "";
+roundHeadings+=`<th class="${headingClass}">Round ${i}</th>`;
 }
 
 head.innerHTML=`
@@ -395,12 +544,15 @@ let selectedPlayer=select.value;
 
 select.innerHTML="";
 
+let highestScore=Math.max(...players.map(player=>player.score));
+
 players.forEach((p,index)=>{
 
 let roundCells="";
 
 for(let i=0;i<totalRounds;i++){
-roundCells+=`<td>${p.rounds[i]}</td>`;
+let cellClass=i==round-1 ? "active-round" : "";
+roundCells+=`<td class="${cellClass}">${p.rounds[i]}</td>`;
 }
 
 table.innerHTML+=`
@@ -409,8 +561,10 @@ table.innerHTML+=`
 ${roundCells}
 </tr>`;
 
+let winnerClass=players.length>1 && highestScore>0 && p.score==highestScore ? "winner-row" : "";
+
 totalTable.innerHTML+=`
-<tr>
+<tr class="${winnerClass}">
 <td>${p.name}</td>
 <td>${p.score}</td>
 </tr>`;
@@ -429,6 +583,18 @@ select.value=selectedPlayer;
 updateHistoryButtons();
 
 }
+
+document.getElementById("playerName").addEventListener("keydown",function(e){
+if(e.key=="Enter"){
+addPlayer();
+}
+});
+
+document.getElementById("points").addEventListener("keydown",function(e){
+if(e.key=="Enter"){
+addPoints();
+}
+});
 
 render();
 
