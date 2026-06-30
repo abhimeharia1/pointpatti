@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teen Patti Score Manager</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#f2f2f2;
+    margin:20px;
+}
+.container{
+    max-width:1100px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px gray;
+}
+input,button{
+    padding:10px;
+    margin:5px;
+    box-sizing:border-box;
+}
+input{
+    max-width:160px;
+}
+select{
+    padding:10px;
+    margin:5px;
+    box-sizing:border-box;
+}
+button{
+    cursor:pointer;
+}
+button:disabled{
+    cursor:not-allowed;
+    opacity:0.5;
+}
+.round-box{
+    margin:15px 0;
+    padding:12px;
+    background:#f7f7f7;
+    border:1px solid #ddd;
+    border-radius:8px;
+}
+.round-box h3{
+    margin:0 0 10px;
+}
+.table-wrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+}
+table{
+    width:100%;
+    min-width:900px;
+    border-collapse:collapse;
+    margin-top:20px;
+}
+th,td{
+    border:1px solid #ccc;
+    padding:8px 6px;
+    text-align:center;
+    font-size:14px;
+    white-space:nowrap;
+}
+th{
+    background:#333;
+    color:white;
+}
+.total-table{
+    min-width:0;
+}
+@media(max-width:600px){
+    body{
+        margin:10px;
+    }
+    .container{
+        padding:14px;
+    }
+    h2{
+        font-size:22px;
+    }
+    input,select,button{
+        width:100%;
+        max-width:none;
+        margin:5px 0;
+    }
+    .round-box button{
+        width:100%;
+    }
+    table{
+        min-width:720px;
+    }
+    .total-table{
+        min-width:0;
+    }
+    th,td{
+        padding:7px 5px;
+        font-size:13px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🃏 Score Manager</h2>
+
+<input id="playerName" placeholder="Player Name">
+<button onclick="addPlayer()">Add Player</button>
+
+<hr>
+
+<div class="round-box">
+<h3>Round: <span id="roundCount">1</span> / <span id="totalRoundCount">10</span></h3>
+<button id="prevRoundBtn" onclick="previousRound()">Previous Round</button>
+<button id="nextRoundBtn" onclick="nextRound()">Next Round</button>
+<button onclick="addRound()">Add Round</button>
+<button id="removeRoundBtn" onclick="removeRound()">Remove Round</button>
+</div>
+
+<select id="playerSelect"></select>
+
+<input type="number" id="points" placeholder="Points">
+
+<button onclick="addPoints()">+ Add</button>
+
+<button onclick="subtractPoints()">- Subtract</button>
+
+<button id="undoBtn" onclick="undoAction()" disabled>Undo</button>
+
+<button id="redoBtn" onclick="redoAction()" disabled>Redo</button>
+
+<button onclick="resetGame()">Reset</button>
+
+<h3>Round Scores</h3>
+<div class="table-wrap">
+<table>
+
+<thead id="scoreHead">
+<tr>
+<th>Player</th>
+<th>Round 1</th>
+</tr>
+</thead>
+
+<tbody id="scoreTable">
+
+</tbody>
+
+</table>
+</div>
+
+<h3>Total Scores</h3>
+<table class="total-table">
+
+<thead>
+<tr>
+<th>Player</th>
+<th>Total Points</th>
+</tr>
+</thead>
+
+<tbody id="totalTable">
+
+</tbody>
+
+</table>
+
+</div>
+
+<script>
+
+let players=[];
+let round=1;
+let totalRounds=10;
+let undoStack=[];
+let redoStack=[];
+
+function getState(){
+return {
+players:players.map(player=>({
+name:player.name,
+score:player.score,
+rounds:[...(player.rounds || [])]
+})),
+round:round,
+totalRounds:totalRounds
+};
+}
+
+function setState(state){
+players=state.players.map(player=>({
+name:player.name,
+score:player.score,
+rounds:[...(player.rounds || [])]
+}));
+round=state.round;
+totalRounds=state.totalRounds;
+render();
+}
+
+function saveState(){
+undoStack.push(getState());
+redoStack=[];
+updateHistoryButtons();
+}
+
+function undoAction(){
+if(undoStack.length==0) return;
+redoStack.push(getState());
+setState(undoStack.pop());
+}
+
+function redoAction(){
+if(redoStack.length==0) return;
+undoStack.push(getState());
+setState(redoStack.pop());
+}
+
+function updateHistoryButtons(){
+document.getElementById("undoBtn").disabled=undoStack.length==0;
+document.getElementById("redoBtn").disabled=redoStack.length==0;
+}
+
+function ensurePlayerRounds(){
+players.forEach(player=>{
+if(!player.rounds) player.rounds=[];
+while(player.rounds.length<totalRounds){
+player.rounds.push(0);
+}
+if(player.rounds.length>totalRounds){
+player.rounds.length=totalRounds;
+}
+player.score=player.rounds.reduce((total,value)=>total+value,0);
+});
+}
+
+function addPlayer(){
+
+let name=document.getElementById("playerName").value.trim();
+
+if(name=="") return;
+
+saveState();
+
+players.push({name:name,score:0,rounds:Array(totalRounds).fill(0)});
+
+document.getElementById("playerName").value="";
+
+render();
+
+}
+
+function addPoints(){
+
+let i=document.getElementById("playerSelect").value;
+
+let p=Number(document.getElementById("points").value);
+
+if(players.length==0) return;
+
+saveState();
+
+players[i].rounds[round-1]+=p;
+players[i].score+=p;
+
+render();
+
+}
+
+function subtractPoints(){
+
+let i=document.getElementById("playerSelect").value;
+
+let p=Number(document.getElementById("points").value);
+
+if(players.length==0) return;
+
+saveState();
+
+players[i].rounds[round-1]-=p;
+players[i].score-=p;
+
+render();
+
+}
+
+function nextRound(){
+
+if(round<totalRounds){
+saveState();
+round++;
+}
+
+render();
+
+}
+
+function previousRound(){
+
+if(round>1){
+saveState();
+round--;
+}
+
+render();
+
+}
+
+function addRound(){
+
+saveState();
+
+totalRounds++;
+
+ensurePlayerRounds();
+
+render();
+
+}
+
+function removeRound(){
+
+if(totalRounds<=1) return;
+
+saveState();
+
+totalRounds--;
+
+if(round>totalRounds){
+round=totalRounds;
+}
+
+ensurePlayerRounds();
+
+render();
+
+}
+
+function resetGame(){
+
+if(confirm("Reset all scores?")){
+
+saveState();
+
+players.forEach(x=>x.score=0);
+players.forEach(x=>x.rounds=Array(totalRounds).fill(0));
+
+render();
+
+}
+
+}
+
+function render(){
+
+document.getElementById("roundCount").innerText=round;
+document.getElementById("totalRoundCount").innerText=totalRounds;
+document.getElementById("prevRoundBtn").disabled=round<=1;
+document.getElementById("nextRoundBtn").disabled=round>=totalRounds;
+document.getElementById("removeRoundBtn").disabled=totalRounds<=1;
+
+ensurePlayerRounds();
+
+let table=document.getElementById("scoreTable");
+
+table.innerHTML="";
+
+let totalTable=document.getElementById("totalTable");
+
+totalTable.innerHTML="";
+
+let head=document.getElementById("scoreHead");
+
+let roundHeadings="";
+
+for(let i=1;i<=totalRounds;i++){
+roundHeadings+=`<th>Round ${i}</th>`;
+}
+
+head.innerHTML=`
+<tr>
+<th>Player</th>
+${roundHeadings}
+</tr>`;
+
+let select=document.getElementById("playerSelect");
+let selectedPlayer=select.value;
+
+select.innerHTML="";
+
+players.forEach((p,index)=>{
+
+let roundCells="";
+
+for(let i=0;i<totalRounds;i++){
+roundCells+=`<td>${p.rounds[i]}</td>`;
+}
+
+table.innerHTML+=`
+<tr>
+<td>${p.name}</td>
+${roundCells}
+</tr>`;
+
+totalTable.innerHTML+=`
+<tr>
+<td>${p.name}</td>
+<td>${p.score}</td>
+</tr>`;
+
+select.innerHTML+=`
+<option value="${index}">
+${p.name}
+</option>`;
+
+});
+
+if(players[selectedPlayer]){
+select.value=selectedPlayer;
+}
+
+updateHistoryButtons();
+
+}
+
+render();
+
+</script>
+
+</body>
+</html>
